@@ -116,6 +116,26 @@ def greedy_algorithm(cost_matrix):
     return total_cost, result
 
 
+def generate_choices(correct_answer):
+    """Generate 3 answer choices: 1 correct + 2 wrong (within 5-15% of correct)."""
+    pct_high = random.uniform(0.05, 0.15)
+    pct_low = random.uniform(0.05, 0.15)
+    wrong_high = round(correct_answer * (1 + pct_high))
+    wrong_low = max(0, round(correct_answer * (1 - pct_low)))
+
+    # Make sure all three values are different
+    if wrong_high == correct_answer:
+        wrong_high = correct_answer + random.randint(100, 500)
+    if wrong_low == correct_answer:
+        wrong_low = max(0, correct_answer - random.randint(100, 500))
+    if wrong_high == wrong_low:
+        wrong_high += random.randint(100, 500)
+
+    choices = [correct_answer, wrong_high, wrong_low]
+    random.shuffle(choices)
+    return choices
+
+
 def run_round(n):
     """Run a single game round: generate matrix, run both algorithms, return results with timing."""
     cost_matrix = generate_cost_matrix(n)

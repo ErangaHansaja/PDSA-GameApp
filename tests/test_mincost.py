@@ -9,6 +9,7 @@ from mincost.algorithms import (
     generate_cost_matrix,
     hungarian_algorithm,
     greedy_algorithm,
+    generate_choices,
     run_round,
 )
 
@@ -137,6 +138,37 @@ class TestGreedyAlgorithm(unittest.TestCase):
         self.assertEqual(assignment, [0])
 
 
+class TestGenerateChoices(unittest.TestCase):
+    """Tests for the answer choice generator."""
+
+    def test_correct_answer_in_choices(self):
+        for _ in range(20):
+            choices = generate_choices(5000)
+            self.assertIn(5000, choices)
+            self.assertEqual(len(choices), 3)
+
+    def test_all_choices_different(self):
+        for _ in range(20):
+            choices = generate_choices(3000)
+            self.assertEqual(len(set(choices)), 3)
+
+    def test_only_one_correct(self):
+        for _ in range(20):
+            choices = generate_choices(8000)
+            self.assertEqual(choices.count(8000), 1)
+
+    def test_wrong_answers_are_close(self):
+        """Wrong answers should be reasonably close to the correct one."""
+        correct = 10000
+        for _ in range(50):
+            choices = generate_choices(correct)
+            for val in choices:
+                if val != correct:
+                    # Should be within ~20% for normal cases
+                    self.assertGreater(val, correct * 0.5)
+                    self.assertLess(val, correct * 2.0)
+
+
 class TestRunRound(unittest.TestCase):
     """Tests for the run_round wrapper function."""
 
@@ -182,21 +214,47 @@ class TestDatabaseOperations(unittest.TestCase):
         conn_module.DB_PATH = self._orig_path
         if os.path.exists(test_db):
             os.remove(test_db)
+        # Clean up WAL/SHM files
+        for ext in ["-wal", "-shm"]:
+            path = test_db + ext
+            if os.path.exists(path):
+                os.remove(path)
 
     def test_save_and_retrieve(self):
         from database.mincost import save_round, get_all_rounds
-        save_round(1, 50, 1500.0, 12.5, 1800.0, 2.3)
+        save_round("game-001", "Alice", 1, 50, 1500.0, 1500.0,
+                   1500.0, 12.5, 1800.0, 2.3, "CORRECT")
         rows = get_all_rounds()
         self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0][0], 1)   # round_number
-        self.assertEqual(rows[0][1], 50)  # n_size
+        self.assertEqual(rows[0][0], "game-001")  # game_id
+        self.assertEqual(rows[0][1], "Alice")      # player_name
+        self.assertEqual(rows[0][2], 1)             # round_number
+        self.assertEqual(rows[0][3], 50)            # n_value
 
     def test_multiple_rounds(self):
         from database.mincost import save_round, get_all_rounds
-        save_round(1, 60, 2000.0, 15.0, 2500.0, 3.0)
-        save_round(2, 75, 3000.0, 20.0, 3500.0, 4.0)
+        save_round("game-002", "Bob", 1, 60, 2000.0, 2000.0,
+                   2000.0, 15.0, 2500.0, 3.0, "CORRECT")
+        save_round("game-002", "Bob", 2, 75, 3000.0, 3200.0,
+                   3200.0, 20.0, 3500.0, 4.0, "WRONG")
         rows = get_all_rounds()
         self.assertEqual(len(rows), 2)
+
+    def test_update_overall_result(self):
+        from database.mincost import save_round, update_overall_result, get_all_rounds
+        save_round("game-003", "Charlie", 1, 55, 1000.0, 1000.0,
+                   1000.0, 10.0, 1200.0, 2.0, "CORRECT")
+        update_overall_result("game-003", "WIN")
+        rows = get_all_rounds()
+        # overall_result is index 11 in the SELECT
+        self.assertEqual(rows[0][11], "WIN")
+
+    def test_overall_result_null_before_update(self):
+        from database.mincost import save_round, get_all_rounds
+        save_round("game-004", "Dave", 1, 50, 900.0, 1000.0,
+                   1000.0, 8.0, 1100.0, 1.5, "WRONG")
+        rows = get_all_rounds()
+        self.assertIsNone(rows[0][11])  # overall_result should be NULL
 
 
 if __name__ == "__main__":

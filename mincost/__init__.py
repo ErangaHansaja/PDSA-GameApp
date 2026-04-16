@@ -2,9 +2,10 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 import random
+import uuid
 
-from mincost.algorithms import run_round
-from database.mincost import create_tables, save_round, get_all_rounds
+from mincost.algorithms import run_round, generate_choices
+from database.mincost import create_tables, save_round, update_overall_result, get_all_rounds
 
 # ============================================================
 #  Design Tokens  (8px spacing scale, consistent palette)
@@ -49,59 +50,88 @@ FONT_STAT_UNIT = ("Segoe UI", 10)
 FONT_MONO = ("Consolas", 9)
 FONT_BTN = ("Segoe UI", 10, "bold")
 
+TOTAL_ROUNDS = 20
+
 
 class MinCostGame:
     def __init__(self, parent):
         self.window = tk.Toplevel(parent)
         self.window.title("Minimum Cost - Task Assignment")
-        self.window.geometry("980x720")
+        self.window.geometry("1100x800")
         self.window.resizable(False, False)
         self.window.configure(bg=BG_DARK)
 
         create_tables()
+
+        # Game state
+        self.game_id = str(uuid.uuid4())
+        self.player_name = ""
         self.round_number = 0
-        self._has_played = False
+        self.wins = 0
+        self.losses = 0
+        self.round_data = []
+        self.current_result = None
+        self.correct_answer = 0
+        self.choice_buttons = []
 
-        self._build_ui()
+        self._build_name_screen()
 
     # ========================================================
-    #  Layout builder
+    #  Screen 1: Player name entry
     # ========================================================
-    def _build_ui(self):
-        # ---------- 1. Header ----------
-        self._build_header()
+    def _build_name_screen(self):
+        self.name_frame = tk.Frame(self.window, bg=BG_DARK)
+        self.name_frame.pack(fill=tk.BOTH, expand=True)
 
-        # ---------- 2. Controls ----------
-        self._build_controls()
+        center = tk.Frame(self.name_frame, bg=BG_SURFACE, padx=48, pady=40)
+        center.place(relx=0.5, rely=0.42, anchor=tk.CENTER)
 
-        # ---------- 3. Status bar (round / N / comparison) ----------
-        self._build_status_bar()
+        tk.Label(center, text="MINIMUM COST GAME", font=FONT_DISPLAY,
+                 bg=BG_SURFACE, fg=ACCENT_BLUE).pack(pady=(0, S3))
 
-        # ---------- 4. Main content area ----------
-        self.content = tk.Frame(self.window, bg=BG_DARK)
-        self.content.pack(fill=tk.BOTH, expand=True, padx=S6, pady=(S2, S4))
+        tk.Label(center, text="Task Assignment Challenge  \u2022  20 Rounds",
+                 font=FONT_BODY, bg=BG_SURFACE, fg=TEXT_SECONDARY).pack(pady=(0, S6))
 
-        # Empty state shown before first round
-        self._build_empty_state()
+        tk.Frame(center, bg=BORDER, height=1).pack(fill=tk.X, pady=(0, S5))
 
-        # Algorithm cards (hidden initially)
-        self.cards_frame = tk.Frame(self.content, bg=BG_DARK)
-        self.h_card = self._build_algo_card(
-            self.cards_frame, "Hungarian Algorithm", "Optimal  |  Kuhn-Munkres  |  O(n\u00b3)", ACCENT_BLUE
+        tk.Label(center, text="Enter your name", font=FONT_H2,
+                 bg=BG_SURFACE, fg=TEXT_PRIMARY).pack(anchor=tk.W, pady=(0, S2))
+
+        self.name_entry = tk.Entry(
+            center, font=FONT_BODY, width=28,
+            bg=BG_INPUT, fg=TEXT_WHITE, insertbackground=TEXT_WHITE,
+            relief=tk.FLAT, highlightthickness=2,
+            highlightcolor=ACCENT_BLUE, highlightbackground=BORDER
         )
-        self.h_card["frame"].pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, S2))
+        self.name_entry.pack(ipady=6, pady=(0, S5))
+        self.name_entry.focus_set()
+        self.name_entry.bind("<Return>", lambda e: self._start_game())
 
-        self.g_card = self._build_algo_card(
-            self.cards_frame, "Greedy Algorithm", "Heuristic  |  Sort & Pick  |  O(n\u00b2 log n)", ACCENT_ORANGE
-        )
-        self.g_card["frame"].pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(S2, 0))
+        self._make_btn(center, "  Start Game  ", ACCENT_GREEN, BG_DARK,
+                       self._start_game).pack(ipadx=S5, ipady=S1)
 
-        # ---------- 5. Footer ----------
-        self._build_footer()
+    def _start_game(self):
+        name = self.name_entry.get().strip()
+        if not name:
+            messagebox.showwarning("Name Required",
+                                   "Please enter your name to start the game.")
+            self.name_entry.focus_set()
+            return
 
-    # ---------- Header ----------
-    def _build_header(self):
-        bar = tk.Frame(self.window, bg=BG_SURFACE, height=56)
+        self.player_name = name
+        self.name_frame.pack_forget()
+        self._build_game_screen()
+        self._setup_round()
+
+    # ========================================================
+    #  Screen 2: Game rounds
+    # ========================================================
+    def _build_game_screen(self):
+        self.game_frame = tk.Frame(self.window, bg=BG_DARK)
+        self.game_frame.pack(fill=tk.BOTH, expand=True)
+
+        # ---------- Header ----------
+        bar = tk.Frame(self.game_frame, bg=BG_SURFACE, height=56)
         bar.pack(fill=tk.X)
         bar.pack_propagate(False)
 
@@ -111,10 +141,10 @@ class MinCostGame:
         tk.Label(bar, text="|", font=FONT_BODY,
                  bg=BG_SURFACE, fg=BORDER).pack(side=tk.LEFT, pady=S3)
 
-        tk.Label(bar, text="  Task Assignment Optimizer", font=FONT_BODY,
+        tk.Label(bar, text=f"  Player: {self.player_name}", font=FONT_BODY,
                  bg=BG_SURFACE, fg=TEXT_SECONDARY).pack(side=tk.LEFT, pady=S3)
 
-        # Back button - pill-shaped container with icon
+        # Back button - same style as original
         back_wrap = tk.Frame(bar, bg="#2a3a5c", padx=1, pady=1)
         back_wrap.pack(side=tk.RIGHT, padx=S6, pady=10)
 
@@ -133,7 +163,6 @@ class MinCostGame:
         )
         back_text.pack(side=tk.LEFT, padx=(0, S3), pady=S1)
 
-        # Hover and click bindings for all child widgets
         hover_targets = [back_wrap, back_inner, back_arrow, back_text]
         for w in hover_targets:
             w.bind("<Enter>", lambda e: [
@@ -151,15 +180,42 @@ class MinCostGame:
             w.bind("<Button-1>", lambda e: self.window.destroy())
 
         # Accent line
-        tk.Frame(self.window, bg=ACCENT_BLUE, height=2).pack(fill=tk.X)
+        tk.Frame(self.game_frame, bg=ACCENT_BLUE, height=2).pack(fill=tk.X)
 
-    # ---------- Controls ----------
-    def _build_controls(self):
-        row = tk.Frame(self.window, bg=BG_DARK)
-        row.pack(fill=tk.X, padx=S6, pady=(S4, S2))
+        # ---------- Status bar ----------
+        status = tk.Frame(self.game_frame, bg=BG_DARK)
+        status.pack(fill=tk.X, padx=S6, pady=(S3, 0))
 
-        # Input group
-        input_grp = tk.Frame(row, bg=BG_DARK)
+        self.lbl_round = self._make_badge(status, "ROUND  01 / 20")
+        self.lbl_round.pack(side=tk.LEFT, padx=(0, S2))
+
+        self.lbl_n = self._make_badge(status, "N  --")
+        self.lbl_n.pack(side=tk.LEFT)
+
+        self.lbl_score = tk.Label(
+            status, text="Score:  0W - 0L", font=FONT_BODY_B,
+            bg=BG_DARK, fg=TEXT_SECONDARY
+        )
+        self.lbl_score.pack(side=tk.RIGHT)
+
+        # ---------- Content area ----------
+        self.content = tk.Frame(self.game_frame, bg=BG_DARK)
+        self.content.pack(fill=tk.BOTH, expand=True, padx=S6, pady=S2)
+
+    def _setup_round(self):
+        """Clear content and prepare for a new round."""
+        for w in self.content.winfo_children():
+            w.destroy()
+
+        self.round_number += 1
+        self.lbl_round.config(text=f"ROUND  {self.round_number:02d} / {TOTAL_ROUNDS}")
+        self.lbl_n.config(text="N  --")
+
+        # --- Controls row ---
+        ctrl = tk.Frame(self.content, bg=BG_DARK)
+        ctrl.pack(fill=tk.X, pady=(S2, S3))
+
+        input_grp = tk.Frame(ctrl, bg=BG_DARK)
         input_grp.pack(side=tk.LEFT)
 
         tk.Label(input_grp, text="Tasks / Employees (N)", font=FONT_CAPTION_B,
@@ -168,7 +224,7 @@ class MinCostGame:
         entry_row = tk.Frame(input_grp, bg=BG_DARK)
         entry_row.pack(anchor=tk.W, pady=(S1, 0))
 
-        self.n_var = tk.StringVar()
+        self.n_var = tk.StringVar(value=str(random.randint(50, 100)))
         self.n_entry = tk.Entry(
             entry_row, textvariable=self.n_var, width=7, font=FONT_BODY,
             bg=BG_INPUT, fg=TEXT_WHITE, insertbackground=TEXT_WHITE,
@@ -176,13 +232,14 @@ class MinCostGame:
             highlightbackground=BORDER, justify=tk.CENTER
         )
         self.n_entry.pack(side=tk.LEFT, ipady=5)
-        self.n_entry.bind("<Return>", lambda e: self._play_round())
+        self.n_entry.bind("<Return>", lambda e: self._generate_round())
+        self.n_entry.focus_set()
 
         tk.Label(entry_row, text="50 - 100", font=FONT_CAPTION,
                  bg=BG_DARK, fg=TEXT_MUTED).pack(side=tk.LEFT, padx=S2)
 
         # Action buttons
-        btn_grp = tk.Frame(row, bg=BG_DARK)
+        btn_grp = tk.Frame(ctrl, bg=BG_DARK)
         btn_grp.pack(side=tk.LEFT, padx=(S6, 0))
 
         # Vertical alignment spacer
@@ -193,60 +250,329 @@ class MinCostGame:
 
         self._make_btn(btns_row, "Random N", ACCENT_PURPLE, TEXT_WHITE,
                        self._random_n).pack(side=tk.LEFT, padx=(0, S2))
-        self._make_btn(btns_row, "Play Round", ACCENT_GREEN, BG_DARK,
-                       self._play_round).pack(side=tk.LEFT)
+        self.gen_btn = self._make_btn(btns_row, "Generate", ACCENT_GREEN, BG_DARK,
+                                      self._generate_round)
+        self.gen_btn.pack(side=tk.LEFT)
 
-        # Right-side history button
-        right_grp = tk.Frame(row, bg=BG_DARK)
-        right_grp.pack(side=tk.RIGHT)
-        tk.Label(right_grp, text="", font=FONT_CAPTION_B, bg=BG_DARK).pack(anchor=tk.E)
-        hist_row = tk.Frame(right_grp, bg=BG_DARK)
-        hist_row.pack(anchor=tk.E, pady=(S1, 0))
-        self._make_btn(hist_row, "View History", "#455a64", TEXT_PRIMARY,
-                       self._show_history).pack()
+        # Instruction text
+        self.instruction = tk.Label(
+            self.content,
+            text="Enter N (50\u2013100) or click Random N, then click Generate",
+            font=FONT_BODY, bg=BG_DARK, fg=TEXT_MUTED
+        )
+        self.instruction.pack(expand=True)
 
-    # ---------- Status bar ----------
-    def _build_status_bar(self):
-        bar = tk.Frame(self.window, bg=BG_DARK)
-        bar.pack(fill=tk.X, padx=S6, pady=(S1, 0))
+    # ========================================================
+    #  Round actions
+    # ========================================================
+    def _random_n(self):
+        self.n_var.set(str(random.randint(50, 100)))
+        self.n_entry.focus_set()
 
-        self.lbl_round = self._make_badge(bar, "ROUND  --")
-        self.lbl_round.pack(side=tk.LEFT, padx=(0, S2))
+    def _generate_round(self):
+        # --- Input validation ---
+        raw = self.n_var.get().strip()
+        if not raw:
+            messagebox.showwarning("Input Required",
+                                   "Please enter a value for N or click Random N.")
+            self.n_entry.focus_set()
+            return
+        try:
+            n = int(raw)
+        except ValueError:
+            messagebox.showerror("Invalid Input",
+                                 "N must be a whole number between 50 and 100.")
+            self.n_entry.focus_set()
+            return
+        if n < 50 or n > 100:
+            messagebox.showerror("Out of Range",
+                                 "N must be between 50 and 100.")
+            self.n_entry.focus_set()
+            return
 
-        self.lbl_n = self._make_badge(bar, "N  --")
-        self.lbl_n.pack(side=tk.LEFT)
+        # Disable controls while processing
+        self.n_entry.config(state=tk.DISABLED)
+        self.gen_btn.config(state=tk.DISABLED)
+        self.instruction.pack_forget()
 
-        self.lbl_compare = tk.Label(bar, text="", font=FONT_BODY_B,
-                                    bg=BG_DARK, fg=TEXT_SECONDARY)
-        self.lbl_compare.pack(side=tk.RIGHT)
+        # Run both algorithms
+        self.current_result = run_round(n)
+        self.lbl_n.config(text=f"N  {n}")
 
-    # ---------- Empty state ----------
-    def _build_empty_state(self):
-        self.empty_state = tk.Frame(self.content, bg=BG_SURFACE)
-        self.empty_state.pack(fill=tk.BOTH, expand=True)
+        # Generate answer choices
+        correct = self.current_result["hungarian"]["cost"]
+        self.correct_answer = correct
+        self.choices = generate_choices(correct)
 
-        inner = tk.Frame(self.empty_state, bg=BG_SURFACE)
-        inner.place(relx=0.5, rely=0.45, anchor=tk.CENTER)
+        # Display the cost matrix
+        self._show_matrix()
 
-        tk.Label(inner, text="No round played yet", font=FONT_H1,
-                 bg=BG_SURFACE, fg=TEXT_SECONDARY).pack(pady=(0, S2))
+        # Show multiple-choice answers
+        self._show_choices()
 
-        steps = [
-            "1.  Enter N (50-100) or click Random N",
-            "2.  Click Play Round to generate a cost matrix",
-            "3.  Compare Hungarian vs Greedy results",
-        ]
-        for step in steps:
-            tk.Label(inner, text=step, font=FONT_BODY,
-                     bg=BG_SURFACE, fg=TEXT_MUTED).pack(anchor=tk.W, pady=2)
+    def _show_matrix(self):
+        cm = self.current_result["cost_matrix"]
+        n = self.current_result["n"]
 
-    # ---------- Footer ----------
-    def _build_footer(self):
-        ft = tk.Frame(self.window, bg=BG_DARK, height=28)
-        ft.pack(fill=tk.X, side=tk.BOTTOM)
-        ft.pack_propagate(False)
-        tk.Label(ft, text="PDSA II  |  Minimum Cost Assignment Problem",
-                 font=FONT_CAPTION, bg=BG_DARK, fg="#2a2a4a").pack(side=tk.LEFT, padx=S6)
+        tk.Label(self.content, text="Cost Matrix (Employee \u00d7 Task)",
+                 font=FONT_CAPTION_B, bg=BG_DARK, fg=TEXT_SECONDARY
+                 ).pack(anchor=tk.W, pady=(0, S1))
+
+        # Bordered wrapper
+        text_wrap = tk.Frame(self.content, bg=BORDER)
+        text_wrap.pack(fill=tk.X, pady=(0, S3))
+
+        inner = tk.Frame(text_wrap, bg=BG_DARK)
+        inner.pack(fill=tk.X, padx=1, pady=1)
+
+        xsb = tk.Scrollbar(inner, orient=tk.HORIZONTAL)
+        ysb = tk.Scrollbar(inner, orient=tk.VERTICAL)
+
+        txt = tk.Text(
+            inner, wrap=tk.NONE, font=FONT_MONO,
+            bg=LISTBOX_BG, fg=TEXT_SECONDARY,
+            xscrollcommand=xsb.set, yscrollcommand=ysb.set,
+            relief=tk.FLAT, highlightthickness=0,
+            padx=4, pady=4, height=10
+        )
+
+        xsb.config(command=txt.xview)
+        ysb.config(command=txt.yview)
+        ysb.pack(side=tk.RIGHT, fill=tk.Y)
+        xsb.pack(side=tk.BOTTOM, fill=tk.X)
+        txt.pack(fill=tk.X)
+
+        # Header row (task numbers)
+        header = "      " + "".join(f"{j+1:>5}" for j in range(n))
+        txt.insert(tk.END, header + "\n")
+
+        # Data rows (employee -> costs)
+        for i in range(n):
+            row = f"{i+1:>4}  " + "".join(f"{cm[i][j]:>5}" for j in range(n))
+            txt.insert(tk.END, row + "\n")
+
+        txt.config(state=tk.DISABLED)
+
+    def _show_choices(self):
+        choice_frame = tk.Frame(self.content, bg=BG_DARK)
+        choice_frame.pack(fill=tk.X, pady=(S1, S2))
+
+        tk.Label(choice_frame, text="What is the minimum total assignment cost?",
+                 font=FONT_H2, bg=BG_DARK, fg=TEXT_PRIMARY
+                 ).pack(anchor=tk.W, pady=(0, S3))
+
+        btn_row = tk.Frame(choice_frame, bg=BG_DARK)
+        btn_row.pack(anchor=tk.W)
+
+        labels = ["A", "B", "C"]
+        self.choice_buttons = []
+        for i, val in enumerate(self.choices):
+            btn = self._make_btn(
+                btn_row, f"  {labels[i]})  ${val:,}  ",
+                BG_INPUT, TEXT_WHITE,
+                lambda v=val: self._pick_answer(v)
+            )
+            btn.pack(side=tk.LEFT, padx=(0, S3), ipady=4)
+            btn._choice_val = val
+            self.choice_buttons.append(btn)
+
+    def _pick_answer(self, guess):
+        h = self.current_result["hungarian"]
+        g = self.current_result["greedy"]
+        n = self.current_result["n"]
+
+        is_correct = (guess == self.correct_answer)
+        round_result = "CORRECT" if is_correct else "WRONG"
+
+        if is_correct:
+            self.wins += 1
+        else:
+            self.losses += 1
+
+        self.lbl_score.config(text=f"Score:  {self.wins}W - {self.losses}L")
+
+        # Highlight correct / wrong buttons
+        for btn in self.choice_buttons:
+            btn.config(state=tk.DISABLED)
+            btn.unbind("<Enter>")
+            btn.unbind("<Leave>")
+            if btn._choice_val == self.correct_answer:
+                btn.config(bg=ACCENT_GREEN, fg=BG_DARK)
+            elif btn._choice_val == guess and not is_correct:
+                btn.config(bg=ACCENT_RED, fg=TEXT_WHITE)
+
+        # Save round to database
+        save_round(
+            self.game_id, self.player_name, self.round_number, n,
+            float(guess), float(self.correct_answer),
+            float(h["cost"]), h["time_ms"],
+            float(g["cost"]), g["time_ms"],
+            round_result
+        )
+
+        # Keep data for end-game summary
+        self.round_data.append({
+            "round": self.round_number, "n": n,
+            "guess": guess, "correct": self.correct_answer,
+            "h_cost": h["cost"], "h_time": h["time_ms"],
+            "g_cost": g["cost"], "g_time": g["time_ms"],
+            "result": round_result,
+        })
+
+        # Show result panel below
+        self._show_round_result(is_correct, guess)
+
+    def _show_round_result(self, is_correct, guess):
+        h = self.current_result["hungarian"]
+        g = self.current_result["greedy"]
+
+        res = tk.Frame(self.content, bg=BG_DARK)
+        res.pack(fill=tk.X, pady=(S2, 0))
+
+        # Result banner
+        color = ACCENT_GREEN if is_correct else ACCENT_RED
+        icon = "\u2713" if is_correct else "\u2717"
+        msg = "Correct!" if is_correct else f"Wrong! You picked ${guess:,}"
+
+        banner = tk.Frame(res, bg=color)
+        banner.pack(fill=tk.X, pady=(0, S2))
+        banner_in = tk.Frame(banner, bg=BG_CARD)
+        banner_in.pack(fill=tk.X, padx=2, pady=2)
+        tk.Label(banner_in, text=f"  {icon}  {msg}", font=FONT_H2,
+                 bg=BG_CARD, fg=color, anchor=tk.W
+                 ).pack(fill=tk.X, padx=S3, pady=S2)
+
+        if not is_correct:
+            tk.Label(res, text=f"Correct answer: ${self.correct_answer:,}",
+                     font=FONT_BODY_B, bg=BG_DARK, fg=TEXT_PRIMARY
+                     ).pack(anchor=tk.W, pady=(0, S2))
+
+        # Algorithm comparison stats
+        stats = tk.Frame(res, bg=BG_SURFACE)
+        stats.pack(fill=tk.X, pady=(0, S2))
+
+        for label, data, accent in [("Hungarian (Optimal)", h, ACCENT_BLUE),
+                                     ("Greedy (Heuristic)", g, ACCENT_ORANGE)]:
+            box = tk.Frame(stats, bg=BG_SURFACE)
+            box.pack(side=tk.LEFT, expand=True, padx=S4, pady=S3)
+            tk.Label(box, text=label, font=FONT_CAPTION_B,
+                     bg=BG_SURFACE, fg=accent).pack()
+            tk.Label(box, text=f"${data['cost']:,}", font=FONT_STAT,
+                     bg=BG_SURFACE, fg=TEXT_WHITE).pack()
+            tk.Label(box, text=f"{data['time_ms']} ms", font=FONT_CAPTION,
+                     bg=BG_SURFACE, fg=accent).pack()
+
+        # Cost comparison text
+        diff = g["cost"] - h["cost"]
+        if diff > 0:
+            pct = (diff / h["cost"]) * 100
+            cmp_text = f"Greedy is ${diff:,} more expensive  (+{pct:.1f}%)"
+            cmp_color = ACCENT_RED
+        else:
+            cmp_text = "Both algorithms found the same cost"
+            cmp_color = ACCENT_GREEN
+
+        tk.Label(res, text=cmp_text, font=FONT_BODY_B,
+                 bg=BG_DARK, fg=cmp_color).pack(pady=(0, S3))
+
+        # Next round / View results button
+        if self.round_number < TOTAL_ROUNDS:
+            self._make_btn(res, "  Next Round  \u2192  ", ACCENT_BLUE, BG_DARK,
+                           self._next_round).pack(anchor=tk.CENTER, ipadx=S5, ipady=S1)
+        else:
+            self._make_btn(res, "  View Results  \u2192  ", ACCENT_GREEN, BG_DARK,
+                           self._show_summary).pack(anchor=tk.CENTER, ipadx=S5, ipady=S1)
+
+    def _next_round(self):
+        self._setup_round()
+
+    # ========================================================
+    #  Screen 3: End game summary
+    # ========================================================
+    def _show_summary(self):
+        # Determine overall result and update DB
+        overall = "WIN" if self.wins > self.losses else "LOSE"
+        update_overall_result(self.game_id, overall)
+
+        self.game_frame.pack_forget()
+
+        summ = tk.Frame(self.window, bg=BG_DARK)
+        summ.pack(fill=tk.BOTH, expand=True)
+
+        # Header
+        hdr = tk.Frame(summ, bg=BG_SURFACE, height=56)
+        hdr.pack(fill=tk.X)
+        hdr.pack_propagate(False)
+        tk.Label(hdr, text="GAME OVER", font=FONT_DISPLAY,
+                 bg=BG_SURFACE, fg=ACCENT_BLUE).pack(side=tk.LEFT, padx=S6, pady=S3)
+        tk.Frame(summ, bg=ACCENT_BLUE, height=2).pack(fill=tk.X)
+
+        # Win or lose
+        if self.wins > self.losses:
+            res_text, res_color = "You Won!", ACCENT_GREEN
+        else:
+            res_text, res_color = "You Lost!", ACCENT_RED
+
+        tk.Label(summ, text=res_text, font=("Segoe UI", 28, "bold"),
+                 bg=BG_DARK, fg=res_color).pack(pady=(S6, S2))
+
+        ratio = (self.wins / TOTAL_ROUNDS) * 100
+        tk.Label(summ,
+                 text=f"{self.wins} Wins  |  {self.losses} Losses  |  {ratio:.0f}% Win Rate",
+                 font=FONT_H1, bg=BG_DARK, fg=TEXT_PRIMARY).pack(pady=(0, S2))
+
+        tk.Label(summ, text=f"Player: {self.player_name}",
+                 font=FONT_BODY, bg=BG_DARK, fg=TEXT_SECONDARY).pack(pady=(0, S4))
+
+        # ---------- Round details table ----------
+        tk.Label(summ, text="Round Details", font=FONT_H2,
+                 bg=BG_DARK, fg=TEXT_SECONDARY).pack(anchor=tk.W, padx=S6)
+
+        table_wrap = tk.Frame(summ, bg=BG_DARK)
+        table_wrap.pack(fill=tk.BOTH, expand=True, padx=S6, pady=(S2, 0))
+
+        style = ttk.Style(summ)
+        style.theme_use("clam")
+        style.configure("S.Treeview",
+                        background=BG_CARD, foreground=TEXT_PRIMARY,
+                        fieldbackground=BG_CARD, font=FONT_CAPTION,
+                        rowheight=26, borderwidth=0)
+        style.configure("S.Treeview.Heading",
+                        background=BG_INPUT, foreground=ACCENT_BLUE,
+                        font=FONT_CAPTION_B, relief=tk.FLAT, borderwidth=0)
+        style.map("S.Treeview",
+                  background=[("selected", BG_HOVER)],
+                  foreground=[("selected", TEXT_WHITE)])
+        style.layout("S.Treeview", [("S.Treeview.treearea", {"sticky": "nswe"})])
+
+        cols = ("Round", "N", "Your Guess", "Correct Ans", "Result",
+                "Hungarian $", "H Time", "Greedy $", "G Time")
+        tree = ttk.Treeview(table_wrap, columns=cols, show="headings",
+                            height=12, style="S.Treeview")
+
+        widths = [55, 45, 100, 100, 70, 100, 85, 100, 85]
+        for col, w in zip(cols, widths):
+            tree.heading(col, text=col)
+            tree.column(col, width=w, anchor=tk.CENTER, minwidth=w)
+
+        vsb = ttk.Scrollbar(table_wrap, orient=tk.VERTICAL, command=tree.yview)
+        tree.configure(yscrollcommand=vsb.set)
+
+        for rd in self.round_data:
+            tree.insert("", tk.END, values=(
+                rd["round"], rd["n"],
+                f"${rd['guess']:,}", f"${rd['correct']:,}",
+                rd["result"],
+                f"${rd['h_cost']:,}", f"{rd['h_time']:.2f} ms",
+                f"${rd['g_cost']:,}", f"{rd['g_time']:.2f} ms",
+            ))
+
+        tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        vsb.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Back to dashboard
+        self._make_btn(summ, "  Back to Dashboard  ", "#455a64", TEXT_PRIMARY,
+                       self.window.destroy).pack(pady=S4)
 
     # ========================================================
     #  Reusable widget builders
@@ -277,233 +603,6 @@ class MinCostGame:
             parent, text=text, font=FONT_CAPTION_B,
             bg=BG_INPUT, fg=ACCENT_BLUE, padx=S3, pady=S1
         )
-
-    def _build_algo_card(self, parent, title, subtitle, accent):
-        # Outer frame with colored border
-        frame = tk.Frame(parent, bg=accent)
-        inner = tk.Frame(frame, bg=BG_CARD)
-        inner.pack(fill=tk.BOTH, expand=True, padx=1, pady=1)  # 1px border
-
-        # ---- Card header ----
-        hdr = tk.Frame(inner, bg=BG_CARD)
-        hdr.pack(fill=tk.X, padx=S4, pady=(S4, 0))
-
-        tk.Label(hdr, text=title, font=FONT_H2,
-                 bg=BG_CARD, fg=accent).pack(anchor=tk.W)
-        tk.Label(hdr, text=subtitle, font=FONT_CAPTION,
-                 bg=BG_CARD, fg=TEXT_MUTED).pack(anchor=tk.W, pady=(2, 0))
-
-        # Divider
-        tk.Frame(inner, bg=BORDER, height=1).pack(fill=tk.X, padx=S4, pady=S3)
-
-        # ---- Stats row ----
-        stats = tk.Frame(inner, bg=BG_CARD)
-        stats.pack(fill=tk.X, padx=S4)
-
-        # Cost stat
-        cost_box = tk.Frame(stats, bg=BG_CARD)
-        cost_box.pack(side=tk.LEFT, expand=True)
-        tk.Label(cost_box, text="TOTAL COST", font=FONT_CAPTION_B,
-                 bg=BG_CARD, fg=TEXT_MUTED).pack()
-        lbl_cost = tk.Label(cost_box, text="--", font=FONT_STAT,
-                            bg=BG_CARD, fg=TEXT_WHITE)
-        lbl_cost.pack()
-
-        # Vertical separator
-        tk.Frame(stats, bg=BORDER, width=1).pack(side=tk.LEFT, fill=tk.Y, padx=S3, pady=S1)
-
-        # Time stat
-        time_box = tk.Frame(stats, bg=BG_CARD)
-        time_box.pack(side=tk.RIGHT, expand=True)
-        tk.Label(time_box, text="EXECUTION TIME", font=FONT_CAPTION_B,
-                 bg=BG_CARD, fg=TEXT_MUTED).pack()
-        lbl_time = tk.Label(time_box, text="--", font=FONT_STAT,
-                            bg=BG_CARD, fg=accent)
-        lbl_time.pack()
-
-        # Divider
-        tk.Frame(inner, bg=BORDER, height=1).pack(fill=tk.X, padx=S4, pady=(S3, S2))
-
-        # ---- Assignment list header ----
-        list_hdr = tk.Frame(inner, bg=BG_CARD)
-        list_hdr.pack(fill=tk.X, padx=S4)
-        tk.Label(list_hdr, text="EMPLOYEE", font=FONT_CAPTION_B,
-                 bg=BG_CARD, fg=TEXT_MUTED).pack(side=tk.LEFT)
-        tk.Label(list_hdr, text="TASK", font=FONT_CAPTION_B,
-                 bg=BG_CARD, fg=TEXT_MUTED).pack(side=tk.LEFT, padx=(S6, 0))
-        tk.Label(list_hdr, text="COST", font=FONT_CAPTION_B,
-                 bg=BG_CARD, fg=TEXT_MUTED).pack(side=tk.RIGHT)
-
-        # ---- Assignment list ----
-        list_wrap = tk.Frame(inner, bg=LISTBOX_BG, highlightbackground=BORDER,
-                             highlightthickness=1)
-        list_wrap.pack(fill=tk.BOTH, expand=True, padx=S4, pady=(S1, S4))
-
-        scrollbar = tk.Scrollbar(list_wrap, troughcolor=BG_DARK, bg=BG_INPUT,
-                                 activebackground=ACCENT_BLUE, relief=tk.FLAT,
-                                 borderwidth=0)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-
-        listbox = tk.Listbox(
-            list_wrap, yscrollcommand=scrollbar.set, font=FONT_MONO,
-            bg=LISTBOX_BG, fg=TEXT_SECONDARY, selectbackground=BG_INPUT,
-            selectforeground=TEXT_WHITE, relief=tk.FLAT, borderwidth=0,
-            highlightthickness=0, activestyle="none"
-        )
-        listbox.pack(fill=tk.BOTH, expand=True)
-        scrollbar.config(command=listbox.yview)
-
-        return {
-            "frame": frame,
-            "lbl_cost": lbl_cost,
-            "lbl_time": lbl_time,
-            "listbox": listbox,
-        }
-
-    # ========================================================
-    #  Actions
-    # ========================================================
-    def _random_n(self):
-        self.n_var.set(str(random.randint(50, 100)))
-        self.n_entry.focus_set()
-
-    def _play_round(self):
-        # --- Input validation ---
-        raw = self.n_var.get().strip()
-        if not raw:
-            messagebox.showwarning("Input Required",
-                                   "Please enter a value for N or click Random N.")
-            self.n_entry.focus_set()
-            return
-        try:
-            n = int(raw)
-        except ValueError:
-            messagebox.showerror("Invalid Input",
-                                 "N must be a whole number between 50 and 100.")
-            self.n_entry.focus_set()
-            return
-        if n < 50 or n > 100:
-            messagebox.showerror("Out of Range",
-                                 "N must be between 50 and 100.")
-            self.n_entry.focus_set()
-            return
-
-        # --- Swap empty state for cards on first play ---
-        if not self._has_played:
-            self.empty_state.pack_forget()
-            self.cards_frame.pack(fill=tk.BOTH, expand=True)
-            self._has_played = True
-
-        # --- Run algorithms ---
-        self.round_number += 1
-        results = run_round(n)
-        h = results["hungarian"]
-        g = results["greedy"]
-
-        # Persist
-        save_round(self.round_number, n, h["cost"], h["time_ms"], g["cost"], g["time_ms"])
-
-        # --- Update status badges ---
-        self.lbl_round.config(text=f"ROUND  {self.round_number:02d}")
-        self.lbl_n.config(text=f"N  {n}")
-
-        # --- Update cards ---
-        self.h_card["lbl_cost"].config(text=f"${h['cost']:,}")
-        self.h_card["lbl_time"].config(text=f"{h['time_ms']} ms")
-
-        self.g_card["lbl_cost"].config(text=f"${g['cost']:,}")
-        self.g_card["lbl_time"].config(text=f"{g['time_ms']} ms")
-
-        # --- Fill assignment lists ---
-        for card, key in [(self.h_card, "hungarian"), (self.g_card, "greedy")]:
-            card["listbox"].delete(0, tk.END)
-            for emp in range(n):
-                task = results[key]["assignment"][emp]
-                cost = results["cost_matrix"][emp][task]
-                card["listbox"].insert(
-                    tk.END,
-                    f"  Emp {emp+1:>3}    ->    Task {task+1:>3}        ${cost:>3}"
-                )
-
-        # --- Comparison ---
-        diff = g["cost"] - h["cost"]
-        if diff > 0:
-            pct = (diff / h["cost"]) * 100
-            self.lbl_compare.config(
-                text=f"Greedy is ${diff:,} more expensive  (+{pct:.1f}%)",
-                fg=ACCENT_RED
-            )
-        else:
-            self.lbl_compare.config(
-                text="Both algorithms found the same optimal cost",
-                fg=ACCENT_GREEN
-            )
-
-        # Pre-fill next random N
-        self.n_var.set(str(random.randint(50, 100)))
-
-    def _show_history(self):
-        rows = get_all_rounds()
-
-        win = tk.Toplevel(self.window)
-        win.title("Game History")
-        win.geometry("880x480")
-        win.resizable(False, True)
-        win.configure(bg=BG_DARK)
-
-        # Header
-        hdr = tk.Frame(win, bg=BG_SURFACE, height=50)
-        hdr.pack(fill=tk.X)
-        hdr.pack_propagate(False)
-        tk.Label(hdr, text="GAME HISTORY", font=FONT_H1,
-                 bg=BG_SURFACE, fg=ACCENT_BLUE).pack(side=tk.LEFT, padx=S6, pady=S3)
-        tk.Label(hdr, text=f"{len(rows)} rounds recorded", font=FONT_CAPTION,
-                 bg=BG_SURFACE, fg=TEXT_MUTED).pack(side=tk.LEFT, padx=S2, pady=S3)
-        tk.Frame(win, bg=ACCENT_BLUE, height=2).pack(fill=tk.X)
-
-        if not rows:
-            tk.Label(win, text="No rounds played yet. Play a round first!",
-                     font=FONT_BODY, bg=BG_DARK, fg=TEXT_MUTED).pack(expand=True)
-            return
-
-        # Styled treeview
-        style = ttk.Style(win)
-        style.theme_use("clam")
-        style.configure("H.Treeview",
-                        background=BG_CARD, foreground=TEXT_PRIMARY,
-                        fieldbackground=BG_CARD, font=FONT_CAPTION,
-                        rowheight=30, borderwidth=0)
-        style.configure("H.Treeview.Heading",
-                        background=BG_INPUT, foreground=ACCENT_BLUE,
-                        font=FONT_CAPTION_B, relief=tk.FLAT, borderwidth=0)
-        style.map("H.Treeview",
-                  background=[("selected", BG_HOVER)],
-                  foreground=[("selected", TEXT_WHITE)])
-        style.layout("H.Treeview", [("H.Treeview.treearea", {"sticky": "nswe"})])
-
-        columns = ("Round", "N", "Hungarian $", "Hungarian ms",
-                   "Greedy $", "Greedy ms", "Date")
-        tree = ttk.Treeview(win, columns=columns, show="headings",
-                            height=15, style="H.Treeview")
-
-        widths = [65, 50, 115, 115, 110, 110, 170]
-        for col, w in zip(columns, widths):
-            tree.heading(col, text=col)
-            tree.column(col, width=w, anchor=tk.CENTER, minwidth=w)
-
-        vsb = ttk.Scrollbar(win, orient=tk.VERTICAL, command=tree.yview)
-        tree.configure(yscrollcommand=vsb.set)
-
-        for r in rows:
-            tree.insert("", tk.END, values=(
-                r[0], r[1],
-                f"${r[2]:,.0f}", f"{r[3]:.2f}",
-                f"${r[4]:,.0f}", f"{r[5]:.2f}",
-                r[6] or ""
-            ))
-
-        tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(S4, 0), pady=S4)
-        vsb.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, S4), pady=S4)
 
 
 def open_mincost_game(parent):
