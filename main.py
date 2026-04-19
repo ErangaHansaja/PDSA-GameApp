@@ -36,7 +36,7 @@ def main():
     root.resizable(False, False)
     root.configure(bg=BG_DARK)
 
-    # --- Header ---
+    # Header
     header = tk.Frame(root, bg=BG_SURFACE, height=80)
     header.pack(fill=tk.X)
     header.pack_propagate(False)
@@ -53,13 +53,13 @@ def main():
 
     tk.Frame(root, bg=ACCENT, height=2).pack(fill=tk.X)
 
-    # --- Subtitle ---
+    # Subtitle
     tk.Label(
         root, text="Select a game to begin", font=FONT_SUB,
         bg=BG_DARK, fg=TEXT_MUTED
     ).pack(pady=(20, 12))
 
-    # --- Game Buttons ---
+    # Game Buttons
     games = [
         ("Minimum Cost", "Optimal task-to-employee assignment", "#00c853", lambda: open_mincost_game(root)),
         ("Snake and Ladder", "Classic board game simulation", "#7c4dff", lambda: show_coming_soon("Snake and Ladder")),
@@ -100,7 +100,7 @@ def main():
             w.bind("<Leave>", lambda e, c=card, ws=widgets: [x.config(bg=BG_CARD) for x in ws])
             w.bind("<Button-1>", lambda e, fn=cmd: fn())
 
-    # --- Footer ---
+    # Footer
     tk.Label(
         root, text="PDSA II - Algorithm Visualizer", font=("Segoe UI", 8),
         bg=BG_DARK, fg="#3a3a5c"
