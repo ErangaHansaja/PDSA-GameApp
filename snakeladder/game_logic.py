@@ -24,3 +24,29 @@ def bfs_min_moves(board):
                     visited.add(temp)
                     queue.append((temp, path + [dice]))
     return 0, [], 0
+
+def dijkstra_min_moves(board):
+    start_time = time.perf_counter()
+    # (moves_count, current_cell)
+    pq = [(0, 1)]
+    visited = {}
+
+    while pq:
+        moves, cell = heapq.heappop(pq)
+        
+        if cell in visited and visited[cell] <= moves:
+            continue
+        visited[cell] = moves
+
+        if cell == board.total_cells:
+            end_time = time.perf_counter()
+            return moves, (end_time - start_time)
+
+        for dice in range(1, 7):
+            next_cell = cell + dice
+            if next_cell <= board.total_cells:
+                temp = next_cell
+                while temp in board.snakes or temp in board.ladders:
+                    temp = board.snakes.get(temp) or board.ladders.get(temp)
+                heapq.heappush(pq, (moves + 1, temp))
+    return 0, 0
