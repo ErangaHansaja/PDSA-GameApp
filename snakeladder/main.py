@@ -155,3 +155,125 @@ def draw_board():
     for s, e in board.snakes.items(): draw_asset(s, e, "snake")
     draw_player()
     board_frame.pack(pady=20)
+
+
+def draw_player():
+    global player_token
+    x, y = get_cell_coords(player_pos)
+    if player_token: canvas.delete(player_token)
+    player_token = canvas.create_oval(x-14, y-14, x+14, y+14, fill=GOLD, outline="white", width=2)
+
+def show_question():
+    global options
+    options = [correct_answer]
+    while len(options) < 3:
+        val = random.randint(max(1, correct_answer - 3), correct_answer + 3)
+        if val not in options: options.append(val)
+    random.shuffle(options)
+    
+    for i in range(3):
+        option_buttons[i].config(text=f"{options[i]} Throws", value=options[i], bg=BG_LIGHT, fg="white")
+    
+    question_frame.pack(pady=10)
+    dice_label.config(text="🎲 ?", fg=TEXT_COLOR)
+    dice_label.pack()
+
+def check_answer():
+    if selected_option.get() == 0: return
+    question_frame.pack_forget()
+    perform_move(selected_option.get())
+
+def perform_move(total_moves):
+    global current_move
+    if current_move >= total_moves:
+        show_final_result()
+        return
+    
+    # Requirement: If user is correct, ensure they reach the end (forced path)
+    if total_moves == correct_answer:
+        dice = forced_path[current_move]
+    else:
+        dice = random.randint(1, 6)
+        
+    dice_label.config(text=f"🎲 {dice}", fg=GOLD)
+    move_step_by_step(dice, total_moves)
+
+def move_step_by_step(steps, total_moves):
+    global player_pos, current_move
+    if steps == 0:
+        if player_pos in board.snakes: player_pos = board.snakes[player_pos]
+        elif player_pos in board.ladders: player_pos = board.ladders[player_pos]
+        draw_player()
+        current_move += 1
+        root.after(600, lambda: perform_move(total_moves))
+        return
+    if player_pos < board.total_cells:
+        player_pos += 1
+        draw_player()
+        root.after(150, lambda: move_step_by_step(steps - 1, total_moves))
+
+def show_final_result():
+    question_frame.pack_forget()
+    dice_label.pack_forget()
+    
+    user_guess = selected_option.get()
+    
+    # Check prediction logic
+    if user_guess == correct_answer:
+        result_label.config(text=f"TOTAL VICTORY!\nPrediction correct & reached the end!", fg=SUCCESS)
+        # Save to DB with times for both algorithms
+        save_winner(player_name, correct_answer, board.size, algo_perf["bfs"], algo_perf["dijkstra"])
+    else:
+        result_label.config(text=f"MISSED IT!\nShortest path was {correct_answer}", fg=DANGER)
+        
+    result_frame.pack(pady=20)
+    
+    
+
+
+# -------------------- UI COMPONENTS --------------------
+
+# Welcome Screen
+name_frame = tk.Frame(root, bg=BG_DARK)
+tk.Label(name_frame, text="SNAKE & LADDER\nMASTER", font=("Impact", 42), bg=BG_DARK, fg=GOLD).pack(pady=30)
+name_entry = tk.Entry(name_frame, font=("Segoe UI", 16), justify='center', bg=BG_LIGHT, fg="white", insertbackground="white", bd=0)
+name_entry.pack(pady=20, ipady=10, ipadx=10)
+create_styled_button(name_frame, "Enter Your Name", start_game, SUCCESS).pack()
+name_frame.pack(pady=100)
+
+# Size Selection
+size_frame = tk.Frame(root, bg=BG_DARK)
+tk.Label(size_frame, text="CHOOSE YOUR BOARD", font=HEADER_FONT, bg=BG_DARK, fg=TEXT_COLOR).pack(pady=20)
+size_var = tk.StringVar(value="8")
+sz_menu = tk.OptionMenu(size_frame, size_var, *[str(i) for i in range(6, 13)])
+sz_menu.config(bg=BG_LIGHT, fg="white", font=PRIMARY_FONT, relief="flat")
+sz_menu.pack(pady=20)
+create_styled_button(size_frame, "GENERATE WORLD", select_size, ACCENT).pack()
+
+# Board Frame
+board_frame = tk.Frame(root, bg="#111", padx=10, pady=10)
+canvas = tk.Canvas(board_frame, width=500, height=500, bg="#111", highlightthickness=0)
+canvas.pack()
+
+# Gameplay HUD
+dice_label = tk.Label(root, text="🎲", font=DICE_FONT, bg=BG_DARK, fg=GOLD)
+
+# Question Area
+question_frame = tk.Frame(root, bg=BG_DARK)
+tk.Label(question_frame, text="MINIMUM THROWS TO WIN?", font=("Segoe UI Semibold", 14), bg=BG_DARK, fg="#bdc3c7").pack()
+selected_option = tk.IntVar()
+btn_container = tk.Frame(question_frame, bg=BG_DARK)
+btn_container.pack(pady=20)
+option_buttons = [tk.Radiobutton(btn_container, text="", variable=selected_option, 
+                                 font=("Segoe UI Bold", 12), indicatoron=0, width=12, 
+                                 selectcolor=ACCENT, cursor="hand2") for _ in range(3)]
+for b in option_buttons: b.pack(side=tk.LEFT, padx=10, ipady=5)
+create_styled_button(question_frame, "CONFIRM PREDICTION", check_answer, GOLD).pack(pady=10)
+
+# Result Screen
+result_frame = tk.Frame(root, bg=BG_DARK)
+result_label = tk.Label(result_frame, text="", font=HEADER_FONT, bg=BG_DARK, justify="center")
+result_label.pack(pady=20)
+create_styled_button(result_frame, "PLAY AGAIN", restart_game, SUCCESS).pack()
+
+root.mainloop()
