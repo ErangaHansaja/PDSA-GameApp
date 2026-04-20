@@ -7,9 +7,7 @@ import uuid
 from mincost.algorithms import run_round, generate_choices
 from database.mincost import create_tables, save_round, update_overall_result, get_all_rounds
 
-# ============================================================
-#  Design Tokens  (8px spacing scale, consistent palette)
-# ============================================================
+# Design Tokens  (8px spacing scale, consistent palette)
 BG_DARK = "#0f0f1a"
 BG_SURFACE = "#1a1a2e"
 BG_CARD = "#16213e"
@@ -126,7 +124,7 @@ class MinCostGame:
         self.game_frame = tk.Frame(self.window, bg=BG_DARK)
         self.game_frame.pack(fill=tk.BOTH, expand=True)
 
-        # ---------- Header ----------
+        # Header
         bar = tk.Frame(self.game_frame, bg=BG_SURFACE, height=56)
         bar.pack(fill=tk.X)
         bar.pack_propagate(False)
@@ -264,7 +262,7 @@ class MinCostGame:
         self.n_entry.focus_set()
 
     def _generate_round(self):
-        # --- Input validation ---
+        # Input validation
         raw = self.n_var.get().strip()
         if not raw:
             messagebox.showwarning("Input Required",
