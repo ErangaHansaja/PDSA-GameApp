@@ -1,28 +1,30 @@
-import sqlite3
+import random
 
-#Pathushi
-def create_table():
-    conn = sqlite3.connect("game.db")
-    cursor = conn.cursor()
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS winners (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT,
-        answer INTEGER,
-        board_size INTEGER,
-        bfs_time REAL,
-        dijkstra_time REAL
-    )
-    """)
-    conn.commit()
-    conn.close()
+class Board:
+    def __init__(self, size):
+        self.size = size
+        self.total_cells = size * size
+        self.snakes = {}
+        self.ladders = {}
+        self.generate_board()
 
-def save_winner(name, answer, board_size, bfs_t, dijk_t):
-    conn = sqlite3.connect("game.db")
-    cursor = conn.cursor()
-    cursor.execute(
-        "INSERT INTO winners (name, answer, board_size, bfs_time, dijkstra_time) VALUES (?, ?, ?, ?, ?)",
-        (name, answer, board_size, bfs_t, dijk_t)
-    )
-    conn.commit()
-    conn.close()
+    def generate_board(self):
+        count = self.size - 2
+
+        # 1. Generate ladders
+        while len(self.ladders) < count:
+            start = random.randint(1, self.total_cells - 2)
+            end = random.randint(start + 1, self.total_cells)
+
+            if start not in self.ladders:
+                self.ladders[start] = end
+
+        # 2. Generate snakes
+        while len(self.snakes) < count:
+            start = random.randint(2, self.total_cells - 1)
+            end = random.randint(1, start - 1)
+
+            # Check: Head of snake cannot be the start of a ladder
+            # Check: Head of snake should also not be the end of a ladder 
+            if start not in self.snakes and start not in self.ladders:
+                self.snakes[start] = end
