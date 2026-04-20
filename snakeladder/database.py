@@ -1,6 +1,5 @@
 import sqlite3
 
-#Pathushi
 def create_table():
     conn = sqlite3.connect("game.db")
     cursor = conn.cursor()
