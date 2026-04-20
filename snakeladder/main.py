@@ -6,9 +6,6 @@ from game_logic import bfs_min_moves, dijkstra_min_moves
 import random
 import math
 
-# --------------
-# Pathushi
-# ------------
 # --- MODERN COLOR PALETTE ---
 ACCENT = "#3498db"      # Bright Blue
 SUCCESS = "#2ecc71"     # Emerald Green
