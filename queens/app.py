@@ -19,3 +19,6 @@ class ChessApp:
         self.selected_queens = []
 
         self.setup_ui()
+
+
+# edit
