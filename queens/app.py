@@ -4,7 +4,8 @@ import sqlite3
 from database import DatabaseManager
 from logic import NQueensLogic
 
-MAX_SOLUTIONS = 30
+
+MAX_SOLUTIONS = 3
 
 
 class ChessApp:
@@ -20,7 +21,7 @@ class ChessApp:
 
         self.setup_ui()
 
-     def setup_ui(self):
+    def setup_ui(self):
         self.root.configure(bg="#1e1e1e")
 
         title = tk.Label(
@@ -86,7 +87,6 @@ class ChessApp:
             command=self.performance,
         ).pack(side=tk.LEFT, padx=10)
 
-
     def on_click(self, r, c):
         pos = (r, c)
 
@@ -138,7 +138,7 @@ class ChessApp:
         if current >= MAX_SOLUTIONS:
             self.show_clear_flag_popup()
 
- def performance(self):
+    def performance(self):
         demo = NQueensLogic(16, max_solutions=MAX_SOLUTIONS)
 
         s_count, s_time, s_solutions = demo.run_sequential()

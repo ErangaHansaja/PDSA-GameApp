@@ -56,7 +56,7 @@ class DatabaseManager:
         conn.commit()
         conn.close()
 
- def save_performance_stats(self, s_count, t_count, s_time, t_time):
+    def save_performance_stats(self, s_count, t_count, s_time, t_time):
         conn = sqlite3.connect(self.db_name)
         cursor = conn.cursor()
         cursor.execute(
