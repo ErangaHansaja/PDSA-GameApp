@@ -16,11 +16,11 @@ class NQueensLogic:
                     return False
         return True
 
-    def backtrack_solver(self, row, current, results, solutions):
+    def backtrack_solver(self, row, current, results, solutions, max_queens):
         if results[0] >= self.max_solutions:
             return
 
-        if row == self.size:
+        if len(current) == max_queens:
             results[0] += 1
             solutions.append(current.copy())
             return
@@ -28,14 +28,14 @@ class NQueensLogic:
         for col in range(self.size):
             temp = current + [(row, col)]
             if self.is_valid(temp):
-                self.backtrack_solver(row + 1, temp, results, solutions)
+                self.backtrack_solver(row + 1, temp, results, solutions, max_queens)
 
     def run_sequential(self):
         results = [0]
         solutions = []
         start = time.time()
 
-        self.backtrack_solver(0, [], results, solutions)
+        self.backtrack_solver(0, [], results, solutions, max_queens=8)
 
         return results[0], time.time() - start, solutions
 
@@ -71,7 +71,7 @@ class NQueensLogic:
             limited_backtrack(1, [(0, start_col)])
 
         # Create threads
-        for c in range(self.size):
+        for c in range(8):
             t = threading.Thread(target=task, args=(c,))
             threads.append(t)
             t.start()

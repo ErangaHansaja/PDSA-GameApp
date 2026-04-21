@@ -3,9 +3,9 @@ from tkinter import messagebox
 import sqlite3
 from database import DatabaseManager
 from logic import NQueensLogic
+import threading
 
-
-MAX_SOLUTIONS = 3
+MAX_SOLUTIONS = 20
 
 
 class ChessApp:
@@ -139,6 +139,9 @@ class ChessApp:
             self.show_clear_flag_popup()
 
     def performance(self):
+        threading.Thread(target=self._run_performance, daemon=True).start()
+
+    def _run_performance(self):
         demo = NQueensLogic(16, max_solutions=MAX_SOLUTIONS)
 
         s_count, s_time, s_solutions = demo.run_sequential()
@@ -146,7 +149,6 @@ class ChessApp:
 
         self.db.save_performance_stats(s_count, t_count, s_time, t_time)
 
-        # Save all unique solutions
         all_solutions = set(map(str, s_solutions + t_solutions))
 
         for sol in all_solutions:
@@ -157,9 +159,13 @@ class ChessApp:
 
         faster = "Sequential" if s_time < t_time else "Threaded"
 
-        messagebox.showinfo(
-            "Performance",
-            f"Sequential: {s_time:.4f}s\nThreaded: {t_time:.4f}s\nFaster: {faster}",
+        # ⚠️ IMPORTANT: UI updates must go through main thread
+        self.root.after(
+            0,
+            lambda: messagebox.showinfo(
+                "Performance",
+                f"Sequential: {s_time:.4f}s\nThreaded: {t_time:.4f}s\nFaster: {faster}",
+            ),
         )
 
     def show_clear_flag_popup(self):
