@@ -30,7 +30,7 @@ class NQueensLogic:
             if self.is_valid(temp):
                 self.backtrack_solver(row + 1, temp, results, solutions)
 
-def run_sequential(self):
+    def run_sequential(self):
         results = [0]
         solutions = []
         start = time.time()
@@ -81,4 +81,3 @@ def run_sequential(self):
             t.join()
 
         return total[0], time.time() - start, solutions
-
