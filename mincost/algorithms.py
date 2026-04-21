@@ -8,7 +8,7 @@ def generate_cost_matrix(n):
     return [[random.randint(20, 200) for _ in range(n)] for _ in range(n)]
 
 
-# Algorithm 1 : Hungarian Algorithm - Optimal O(n^3)
+# Algorithm 1 : Hungarian Algorithm 
 def hungarian_algorithm(cost_matrix):
     """
     Implements the Hungarian algorithm to find the minimum cost assignment.
@@ -17,18 +17,16 @@ def hungarian_algorithm(cost_matrix):
     """
     n = len(cost_matrix)
 
-    # Create working copy with padding row/col (1-indexed internally)
-    u = [0] * (n + 1)  # potential for employees (rows)
-    v = [0] * (n + 1)  # potential for tasks (cols)
-    assignment = [0] * (n + 1)  # assignment[j] = employee assigned to task j
+    u = [0] * (n + 1) 
+    v = [0] * (n + 1)  
+    assignment = [0] * (n + 1)  
 
     for i in range(1, n + 1):
-        # links[j] = employee that gives the shortest tentative connection to task j
         links = [0] * (n + 1)
-        mins = [float('inf')] * (n + 1)  # min reduced cost to reach task j
+        mins = [float('inf')] * (n + 1)  
         visited = [False] * (n + 1)
 
-        assignment[0] = i  # virtual task 0 points to current employee
+        assignment[0] = i  
         j0 = 0  # start from virtual task
 
         while True:
@@ -77,7 +75,7 @@ def hungarian_algorithm(cost_matrix):
     return total_cost, result
 
 
-# Algorithm 2 : Greedy Algorithm - Heuristic O(n^2 log n)
+# Algorithm 2 : Greedy Algorithm 
 def greedy_algorithm(cost_matrix):
     """
     Greedy approach: sort all (employee, task) pairs by cost ascending,
