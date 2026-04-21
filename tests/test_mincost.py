@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from mincost.algorithms import generate_cost_matrix, hungarian_algorithm, greedy_algorithm, generate_choices, run_round
 
 
-# ─── 1. Logic / Algorithm Tests ──────────────────────────────────────────────
+# 1. Logic / Algorithm Tests 
 
 class TestAlgorithms(unittest.TestCase):
 
@@ -60,7 +60,7 @@ class TestAlgorithms(unittest.TestCase):
             self.assertEqual(len(set(asgn)), 50)
 
 
-# ─── 2. Database Tests ───────────────────────────────────────────────────────
+# 2. Database Tests 
 
 class TestDatabase(unittest.TestCase):
 
@@ -109,7 +109,7 @@ class TestDatabase(unittest.TestCase):
         self.assertIsNone(get_all_rounds()[0][11])
 
 
-# ─── 3. App / UI Smoke Tests ─────────────────────────────────────────────────
+# 3. App / UI Tests 
 
 class TestApp(unittest.TestCase):
 
