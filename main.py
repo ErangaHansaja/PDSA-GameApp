@@ -32,7 +32,7 @@ def _on_leave(e, btn, color):
 def main():
     root = tk.Tk()
     root.title("PDSA Game Suite")
-    root.geometry("480x520")
+    root.geometry("480x550")
     root.resizable(False, False)
     root.configure(bg=BG_DARK)
 
