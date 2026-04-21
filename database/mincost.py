@@ -76,3 +76,25 @@ def get_all_rounds():
     rows = cursor.fetchall()
     conn.close()
     return rows
+
+
+def get_scoreboard():
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT
+            player_name,
+            SUM(CASE WHEN round_result = 'CORRECT' THEN 1 ELSE 0 END) AS wins,
+            COUNT(*) AS total_rounds,
+            ROUND(
+                SUM(CASE WHEN round_result = 'CORRECT' THEN 1 ELSE 0 END) * 100.0 / COUNT(*),
+                1
+            ) AS win_pct,
+            DATE(MIN(created_at)) AS played_at
+        FROM mincost_rounds
+        GROUP BY game_id
+        ORDER BY wins DESC, win_pct DESC
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
