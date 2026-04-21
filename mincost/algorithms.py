@@ -8,9 +8,7 @@ def generate_cost_matrix(n):
     return [[random.randint(20, 200) for _ in range(n)] for _ in range(n)]
 
 
-# ---------------------------------------------------------------------------
-# Algorithm 1 : Hungarian Algorithm (Kuhn-Munkres) - Optimal O(n^3)
-# ---------------------------------------------------------------------------
+# Algorithm 1 : Hungarian Algorithm - Optimal O(n^3)
 def hungarian_algorithm(cost_matrix):
     """
     Implements the Hungarian algorithm to find the minimum cost assignment.
@@ -79,9 +77,7 @@ def hungarian_algorithm(cost_matrix):
     return total_cost, result
 
 
-# ---------------------------------------------------------------------------
 # Algorithm 2 : Greedy Algorithm - Heuristic O(n^2 log n)
-# ---------------------------------------------------------------------------
 def greedy_algorithm(cost_matrix):
     """
     Greedy approach: sort all (employee, task) pairs by cost ascending,

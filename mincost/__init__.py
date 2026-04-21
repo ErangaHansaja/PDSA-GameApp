@@ -7,9 +7,7 @@ import uuid
 from mincost.algorithms import run_round, generate_choices
 from database.mincost import create_tables, save_round, update_overall_result, get_all_rounds
 
-# ============================================================
-#  Design Tokens  (8px spacing scale, consistent palette)
-# ============================================================
+# Design Tokens  (8px spacing scale, consistent palette)
 BG_DARK = "#0f0f1a"
 BG_SURFACE = "#1a1a2e"
 BG_CARD = "#16213e"
@@ -76,9 +74,7 @@ class MinCostGame:
 
         self._build_name_screen()
 
-    # ========================================================
     #  Screen 1: Player name entry
-    # ========================================================
     def _build_name_screen(self):
         self.name_frame = tk.Frame(self.window, bg=BG_DARK)
         self.name_frame.pack(fill=tk.BOTH, expand=True)
@@ -123,14 +119,12 @@ class MinCostGame:
         self._build_game_screen()
         self._setup_round()
 
-    # ========================================================
     #  Screen 2: Game rounds
-    # ========================================================
     def _build_game_screen(self):
         self.game_frame = tk.Frame(self.window, bg=BG_DARK)
         self.game_frame.pack(fill=tk.BOTH, expand=True)
 
-        # ---------- Header ----------
+        # Header
         bar = tk.Frame(self.game_frame, bg=BG_SURFACE, height=56)
         bar.pack(fill=tk.X)
         bar.pack_propagate(False)
@@ -182,7 +176,7 @@ class MinCostGame:
         # Accent line
         tk.Frame(self.game_frame, bg=ACCENT_BLUE, height=2).pack(fill=tk.X)
 
-        # ---------- Status bar ----------
+        # Status bar
         status = tk.Frame(self.game_frame, bg=BG_DARK)
         status.pack(fill=tk.X, padx=S6, pady=(S3, 0))
 
@@ -198,7 +192,7 @@ class MinCostGame:
         )
         self.lbl_score.pack(side=tk.RIGHT)
 
-        # ---------- Content area ----------
+        # Content area
         self.content = tk.Frame(self.game_frame, bg=BG_DARK)
         self.content.pack(fill=tk.BOTH, expand=True, padx=S6, pady=S2)
 
@@ -211,7 +205,7 @@ class MinCostGame:
         self.lbl_round.config(text=f"ROUND  {self.round_number:02d} / {TOTAL_ROUNDS}")
         self.lbl_n.config(text="N  --")
 
-        # --- Controls row ---
+        # Controls row
         ctrl = tk.Frame(self.content, bg=BG_DARK)
         ctrl.pack(fill=tk.X, pady=(S2, S3))
 
@@ -262,15 +256,13 @@ class MinCostGame:
         )
         self.instruction.pack(expand=True)
 
-    # ========================================================
-    #  Round actions
-    # ========================================================
+    # Round actions
     def _random_n(self):
         self.n_var.set(str(random.randint(50, 100)))
         self.n_entry.focus_set()
 
     def _generate_round(self):
-        # --- Input validation ---
+        # Input validation
         raw = self.n_var.get().strip()
         if not raw:
             messagebox.showwarning("Input Required",
@@ -486,9 +478,7 @@ class MinCostGame:
     def _next_round(self):
         self._setup_round()
 
-    # ========================================================
-    #  Screen 3: End game summary
-    # ========================================================
+    # Screen 3: End game summary
     def _show_summary(self):
         # Determine overall result and update DB
         overall = "WIN" if self.wins > self.losses else "LOSE"
@@ -524,7 +514,7 @@ class MinCostGame:
         tk.Label(summ, text=f"Player: {self.player_name}",
                  font=FONT_BODY, bg=BG_DARK, fg=TEXT_SECONDARY).pack(pady=(0, S4))
 
-        # ---------- Round details table ----------
+        # Round details table
         tk.Label(summ, text="Round Details", font=FONT_H2,
                  bg=BG_DARK, fg=TEXT_SECONDARY).pack(anchor=tk.W, padx=S6)
 
@@ -574,9 +564,7 @@ class MinCostGame:
         self._make_btn(summ, "  Back to Dashboard  ", "#455a64", TEXT_PRIMARY,
                        self.window.destroy).pack(pady=S4)
 
-    # ========================================================
-    #  Reusable widget builders
-    # ========================================================
+    # Reusable widget builders
     def _make_btn(self, parent, text, bg, fg, command):
         btn = tk.Button(
             parent, text=text, font=FONT_BTN,
