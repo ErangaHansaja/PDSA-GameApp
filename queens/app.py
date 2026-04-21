@@ -20,6 +20,73 @@ class ChessApp:
 
         self.setup_ui()
 
+     def setup_ui(self):
+        self.root.configure(bg="#1e1e1e")
+
+        title = tk.Label(
+            self.root,
+            text="♛ Sixteen Queens Puzzle ♛",
+            font=("Helvetica", 18, "bold"),
+            fg="white",
+            bg="#1e1e1e",
+        )
+        title.pack(pady=10)
+
+        frame = tk.Frame(self.root, bg="#1e1e1e")
+        frame.pack()
+
+        tk.Label(frame, text="Name:", fg="white", bg="#1e1e1e").pack(side=tk.LEFT)
+
+        self.name_entry = tk.Entry(frame, bg="#2b2b2b", fg="white")
+        self.name_entry.pack(side=tk.LEFT, padx=10)
+
+        self.counter_label = tk.Label(
+            self.root,
+            text="Queens: 0/8",
+            font=("Helvetica", 12, "bold"),
+            fg="white",
+            bg="#1e1e1e",
+        )
+        self.counter_label.pack()
+
+        self.grid_frame = tk.Frame(self.root)
+        self.grid_frame.pack(pady=10)
+
+        self.btns = [[None for _ in range(16)] for _ in range(16)]
+
+        for r in range(16):
+            for c in range(16):
+                color = "#eeeeee" if (r + c) % 2 == 0 else "#666666"
+
+                btn = tk.Button(
+                    self.grid_frame,
+                    width=3,
+                    height=1,
+                    font=("Arial", 14, "bold"),
+                    bg=color,
+                    activebackground=color,
+                    relief="flat",
+                    command=lambda r=r, c=c: self.on_click(r, c),
+                )
+                btn.grid(row=r, column=c)
+                self.btns[r][c] = btn
+
+        bottom = tk.Frame(self.root, bg="#1e1e1e")
+        bottom.pack(pady=10)
+
+        tk.Button(
+            bottom, text="CHECK", bg="#28a745", fg="white", command=self.check
+        ).pack(side=tk.LEFT, padx=10)
+
+        tk.Button(
+            bottom,
+            text="PERFORMANCE",
+            bg="#007bff",
+            fg="white",
+            command=self.performance,
+        ).pack(side=tk.LEFT, padx=10)
+
+
     def on_click(self, r, c):
         pos = (r, c)
 
@@ -70,3 +137,77 @@ class ChessApp:
 
         if current >= MAX_SOLUTIONS:
             self.show_clear_flag_popup()
+
+ def performance(self):
+        demo = NQueensLogic(16, max_solutions=MAX_SOLUTIONS)
+
+        s_count, s_time, s_solutions = demo.run_sequential()
+        t_count, t_time, t_solutions = demo.run_threaded()
+
+        self.db.save_performance_stats(s_count, t_count, s_time, t_time)
+
+        # Save all unique solutions
+        all_solutions = set(map(str, s_solutions + t_solutions))
+
+        for sol in all_solutions:
+            try:
+                self.db.save_solution(sol)
+            except:
+                pass
+
+        faster = "Sequential" if s_time < t_time else "Threaded"
+
+        messagebox.showinfo(
+            "Performance",
+            f"Sequential: {s_time:.4f}s\nThreaded: {t_time:.4f}s\nFaster: {faster}",
+        )
+
+    def show_clear_flag_popup(self):
+        popup = tk.Toplevel(self.root)
+        popup.title("Max Solutions Reached")
+        popup.geometry("300x150")
+        popup.configure(bg="#1e1e1e")
+
+        tk.Label(
+            popup,
+            text="30 solutions reached!\nYou can now reset the system.",
+            fg="white",
+            bg="#1e1e1e",
+            font=("Helvetica", 11),
+        ).pack(pady=20)
+
+        def clear_flag():
+            self.db.clear_player_responses()
+            messagebox.showinfo("Cleared", "Player responses reset!")
+            popup.destroy()
+
+        tk.Button(
+            popup,
+            text="Clear Flag",
+            bg="#dc3545",
+            fg="white",
+            command=clear_flag,
+            width=15,
+        ).pack(pady=10)
+
+    def reset_board(self):
+        # Clear selected queens
+        self.selected_queens.clear()
+
+        # Reset all buttons
+        for r in range(16):
+            for c in range(16):
+                color = "#eeeeee" if (r + c) % 2 == 0 else "#666666"
+                self.btns[r][c].config(text="", bg=color)
+
+        # Reset counter
+        self.counter_label.config(text="Queens: 0/8")
+
+        # Clear name field
+        self.name_entry.delete(0, tk.END)
+
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = ChessApp(root)
+    root.mainloop()
