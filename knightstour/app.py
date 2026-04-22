@@ -6,8 +6,8 @@ import random
 import threading
 import time
 
-from db import init_db, save_winner, fetch_winners, save_algorithm_time
-from knight_logic import (
+from database.knightstour import init_db, save_winner, fetch_winners, save_algorithm_time
+from knightstour.knight_logic import (
     get_valid_moves,
     is_valid_knight_move,
     validate_tour,
