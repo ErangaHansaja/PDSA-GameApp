@@ -22,6 +22,26 @@ def show_coming_soon(game_name):
     messagebox.showinfo(game_name, "Coming Soon")
 
 
+def open_traffic_game(root):
+    """Launch Traffic Simulation - destroys dashboard, reopens on exit."""
+    root.destroy()
+
+    import sys, os
+    traffic_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "traffic")
+    if traffic_dir not in sys.path:
+        sys.path.insert(0, traffic_dir)
+
+    from traffic.main import MaximumFlowGame
+    app = MaximumFlowGame()
+
+    def go_back():
+        app.root.destroy()
+        main()
+
+    app.handle_back_to_dashboard = go_back
+    app.run()
+
+
 def _on_enter(e, btn, color):
     btn.config(bg=color)
 
@@ -64,7 +84,7 @@ def main():
     games = [
         ("Minimum Cost", "Optimal task-to-employee assignment", "#00c853", lambda: open_mincost_game(root)),
         ("Snake and Ladder", "Classic board game simulation", "#7c4dff", lambda: show_coming_soon("Snake and Ladder")),
-        ("Traffic Simulation", "Network flow optimization", "#ff6d00", lambda: show_coming_soon("Traffic Simulation")),
+        ("Traffic Simulation", "Network flow optimization", "#ff6d00", lambda: open_traffic_game(root)),
         ("Knight's Tour", "Chessboard traversal challenge", "#e91e63", lambda: show_coming_soon("Knight's Tour")),
         ("Sixteen Queens", "N-Queens placement puzzle", "#fdd835", lambda: open_queens_game(root)),
     ]
