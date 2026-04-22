@@ -3,6 +3,7 @@ import tkinter as tk
 from tkinter import messagebox
 
 from mincost import open_mincost_game
+from queens import open_queens_game
 
 # --- Shared Design Tokens ---
 BG_DARK = "#0f0f1a"
@@ -65,7 +66,7 @@ def main():
         ("Snake and Ladder", "Classic board game simulation", "#7c4dff", lambda: show_coming_soon("Snake and Ladder")),
         ("Traffic Simulation", "Network flow optimization", "#ff6d00", lambda: show_coming_soon("Traffic Simulation")),
         ("Knight's Tour", "Chessboard traversal challenge", "#e91e63", lambda: show_coming_soon("Knight's Tour")),
-        ("Sixteen Queens", "N-Queens placement puzzle", "#fdd835", lambda: show_coming_soon("Sixteen Queens")),
+        ("Sixteen Queens", "N-Queens placement puzzle", "#fdd835", lambda: open_queens_game(root)),
     ]
 
     for name, desc, color, cmd in games:
