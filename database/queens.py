@@ -1,15 +1,15 @@
 # DB tables for Sixteen Queens game
 import sqlite3
 import time
+from database.connection import get_connection
 
 
 class DatabaseManager:
-    def __init__(self, db_name="chess_game.db"):
-        self.db_name = db_name
+    def __init__(self):
         self.init_db()
 
     def connect(self):
-        return sqlite3.connect(self.db_name, timeout=10, check_same_thread=False)
+        return get_connection()
 
     def init_db(self):
         conn = self.connect()

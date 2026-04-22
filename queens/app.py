@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import messagebox
 import sqlite3
 import threading
-from database import DatabaseManager
+from database.queens import DatabaseManager
 from logic import NQueensLogic
 
 MAX_SOLUTIONS = 20
