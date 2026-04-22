@@ -1,9 +1,9 @@
 import tkinter as tk
 from tkinter import messagebox
 import sqlite3
+import threading
 from database import DatabaseManager
 from logic import NQueensLogic
-import threading
 
 MAX_SOLUTIONS = 20
 
@@ -12,7 +12,6 @@ class ChessApp:
     def __init__(self, root):
         self.root = root
         self.root.title("16 Queens Puzzle")
-
         self.root.geometry("1100x800")
 
         self.db = DatabaseManager()
@@ -126,18 +125,19 @@ class ChessApp:
 
         try:
             self.db.save_player_response(name, answer)
-            messagebox.showinfo("Success", "Saved!")
-            self.reset_board()
         except sqlite3.IntegrityError:
             messagebox.showerror("Duplicate", "Solution already exists!")
             return
 
-        # Check AFTER insert
+        messagebox.showinfo("Success", "Saved!")
+        self.reset_board()
+
         current = self.db.get_player_solution_count()
 
         if current >= MAX_SOLUTIONS:
             self.show_clear_flag_popup()
 
+    # ✅ FIXED PERFORMANCE (THREAD SAFE)
     def performance(self):
         threading.Thread(target=self._run_performance, daemon=True).start()
 
@@ -147,24 +147,26 @@ class ChessApp:
         s_count, s_time, s_solutions = demo.run_sequential()
         t_count, t_time, t_solutions = demo.run_threaded()
 
+        # Save stats
         self.db.save_performance_stats(s_count, t_count, s_time, t_time)
 
+        # Merge solutions
         all_solutions = set(map(str, s_solutions + t_solutions))
 
-        for sol in all_solutions:
-            try:
-                self.db.save_solution(sol)
-            except:
-                pass
+        # ✅ BULK insert (fixes DB lock)
+        self.db.save_solutions_bulk(all_solutions)
 
         faster = "Sequential" if s_time < t_time else "Threaded"
 
-        # ⚠️ IMPORTANT: UI updates must go through main thread
+        # UI update safely
         self.root.after(
             0,
             lambda: messagebox.showinfo(
                 "Performance",
-                f"Sequential: {s_time:.4f}s\nThreaded: {t_time:.4f}s\nFaster: {faster}",
+                f"Solutions Found: {len(all_solutions)} (Capped at {MAX_SOLUTIONS})\n\n"
+                f"Sequential: {s_time:.4f}s\n"
+                f"Threaded: {t_time:.4f}s\n\n"
+                f"Faster: {faster}",
             ),
         )
 
@@ -176,7 +178,7 @@ class ChessApp:
 
         tk.Label(
             popup,
-            text="30 solutions reached!\nYou can now reset the system.",
+            text="20 solutions reached!\nYou can now reset the system.",
             fg="white",
             bg="#1e1e1e",
             font=("Helvetica", 11),
@@ -184,6 +186,7 @@ class ChessApp:
 
         def clear_flag():
             self.db.clear_player_responses()
+            self.reset_board()
             messagebox.showinfo("Cleared", "Player responses reset!")
             popup.destroy()
 
@@ -197,19 +200,14 @@ class ChessApp:
         ).pack(pady=10)
 
     def reset_board(self):
-        # Clear selected queens
         self.selected_queens.clear()
 
-        # Reset all buttons
         for r in range(16):
             for c in range(16):
                 color = "#eeeeee" if (r + c) % 2 == 0 else "#666666"
                 self.btns[r][c].config(text="", bg=color)
 
-        # Reset counter
         self.counter_label.config(text="Queens: 0/8")
-
-        # Clear name field
         self.name_entry.delete(0, tk.END)
 
 

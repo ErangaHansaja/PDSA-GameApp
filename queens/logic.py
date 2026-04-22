@@ -3,7 +3,7 @@ import threading
 
 
 class NQueensLogic:
-    def __init__(self, size=16, max_solutions=30):
+    def __init__(self, size=16, max_solutions=20):
         self.size = size
         self.max_solutions = max_solutions
 
@@ -16,6 +16,7 @@ class NQueensLogic:
                     return False
         return True
 
+    # ---------------- SEQUENTIAL ----------------
     def backtrack_solver(self, row, current, results, solutions, max_queens):
         if results[0] >= self.max_solutions:
             return
@@ -23,6 +24,9 @@ class NQueensLogic:
         if len(current) == max_queens:
             results[0] += 1
             solutions.append(current.copy())
+            return
+
+        if row >= self.size:
             return
 
         for col in range(self.size):
@@ -39,6 +43,7 @@ class NQueensLogic:
 
         return results[0], time.time() - start, solutions
 
+    # ---------------- THREADED ----------------
     def run_threaded(self):
         total = [0]
         solutions = []
@@ -47,36 +52,36 @@ class NQueensLogic:
         start = time.time()
 
         def task(start_col):
-            local_solutions = []
-
-            def limited_backtrack(row, current):
-                # STOP if global limit reached
+            def backtrack(row, current):
+                # STOP early if limit reached
                 with lock:
                     if total[0] >= self.max_solutions:
                         return
 
-                if row == self.size:
+                # Found 8 queens
+                if len(current) == 8:
                     with lock:
                         if total[0] < self.max_solutions:
                             total[0] += 1
                             solutions.append(current.copy())
                     return
 
+                if row >= self.size:
+                    return
+
                 for col in range(self.size):
                     temp = current + [(row, col)]
-
                     if self.is_valid(temp):
-                        limited_backtrack(row + 1, temp)
+                        backtrack(row + 1, temp)
 
-            limited_backtrack(1, [(0, start_col)])
+            backtrack(1, [(0, start_col)])
 
-        # Create threads
+        # Only 8 threads (good balance)
         for c in range(8):
             t = threading.Thread(target=task, args=(c,))
             threads.append(t)
             t.start()
 
-        # Wait for all
         for t in threads:
             t.join()
 
