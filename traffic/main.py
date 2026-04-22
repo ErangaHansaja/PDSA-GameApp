@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import messagebox
-from database import init_db, save_result, get_player_history, get_all_results
+from database.traffic import init_db, save_result, get_player_history, get_all_results
 from game_logic import Game
 from ui.start_screen import StartScreen
 from ui.game_screen import GameScreen
