@@ -7,7 +7,6 @@ class DatabaseManager:
         self.db_name = db_name
         self.init_db()
 
-    # ✅ Safe connection (prevents locking issues)
     def connect(self):
         return sqlite3.connect(self.db_name, timeout=10, check_same_thread=False)
 
@@ -15,7 +14,6 @@ class DatabaseManager:
         conn = self.connect()
         cursor = conn.cursor()
 
-        # ✅ Enable WAL mode (important for concurrency)
         cursor.execute("PRAGMA journal_mode=WAL;")
 
         cursor.execute(
@@ -50,7 +48,6 @@ class DatabaseManager:
         conn.commit()
         conn.close()
 
-    # ---------- PLAYER ----------
     def save_player_response(self, name, answer):
         conn = self.connect()
         cursor = conn.cursor()
@@ -73,7 +70,6 @@ class DatabaseManager:
         conn.commit()
         conn.close()
 
-    # ---------- PERFORMANCE ----------
     def save_performance_stats(self, s_count, t_count, s_time, t_time):
         for _ in range(5):  # retry logic
             try:
@@ -89,7 +85,6 @@ class DatabaseManager:
             except sqlite3.OperationalError:
                 time.sleep(0.1)
 
-    # ---------- SOLUTIONS (BULK INSERT - FIXES LOCK ERROR) ----------
     def save_solutions_bulk(self, solutions):
         for _ in range(5):  # retry if locked
             try:

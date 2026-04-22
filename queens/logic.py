@@ -16,7 +16,6 @@ class NQueensLogic:
                     return False
         return True
 
-    # ---------------- SEQUENTIAL ----------------
     def backtrack_solver(self, row, current, results, solutions, max_queens):
         if results[0] >= self.max_solutions:
             return
@@ -43,7 +42,6 @@ class NQueensLogic:
 
         return results[0], time.time() - start, solutions
 
-    # ---------------- THREADED ----------------
     def run_threaded(self):
         total = [0]
         solutions = []
@@ -76,7 +74,6 @@ class NQueensLogic:
 
             backtrack(1, [(0, start_col)])
 
-        # Only 8 threads (good balance)
         for c in range(8):
             t = threading.Thread(target=task, args=(c,))
             threads.append(t)
