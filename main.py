@@ -4,6 +4,7 @@ from tkinter import messagebox
 
 from mincost import open_mincost_game
 from queens import open_queens_game
+from snakeladder import open_snake_ladder
 
 # --- Shared Design Tokens ---
 BG_DARK = "#0f0f1a"
@@ -83,7 +84,7 @@ def main():
     # Game Buttons
     games = [
         ("Minimum Cost", "Optimal task-to-employee assignment", "#00c853", lambda: open_mincost_game(root)),
-        ("Snake and Ladder", "Classic board game simulation", "#7c4dff", lambda: show_coming_soon("Snake and Ladder")),
+        ("Snake and Ladder", "Classic board game simulation", "#7c4dff", lambda: open_snake_ladder(root)),
         ("Traffic Simulation", "Network flow optimization", "#ff6d00", lambda: open_traffic_game(root)),
         ("Knight's Tour", "Chessboard traversal challenge", "#e91e63", lambda: show_coming_soon("Knight's Tour")),
         ("Sixteen Queens", "N-Queens placement puzzle", "#fdd835", lambda: open_queens_game(root)),
