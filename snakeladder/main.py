@@ -1,5 +1,5 @@
 import tkinter as tk
-from database import create_table, save_winner
+from database.snakeladder import create_table, save_winner
 from tkinter import messagebox
 from board import Board
 from game_logic import bfs_min_moves, dijkstra_min_moves

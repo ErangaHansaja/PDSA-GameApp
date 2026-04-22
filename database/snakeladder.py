@@ -1,8 +1,8 @@
 # DB tables for Snake and Ladder game
-import sqlite3
+from database.connection import get_connection
 
 def create_table():
-    conn = sqlite3.connect("game.db")
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS winners (
@@ -18,7 +18,7 @@ def create_table():
     conn.close()
 
 def save_winner(name, answer, board_size, bfs_t, dijk_t):
-    conn = sqlite3.connect("game.db")
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
         "INSERT INTO winners (name, answer, board_size, bfs_time, dijkstra_time) VALUES (?, ?, ?, ?, ?)",
